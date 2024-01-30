@@ -1,81 +1,23 @@
-#![allow(dead_code, unused)]
-
-use serde::Deserialize;
-use std::{env, fs};
-use std::error::Error;
-use std::process::exit;
-
-#[derive(Debug, Deserialize)]
-struct Software {
-    name: String,
-    os: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Config {
-    software: Vec<Software>,
-}
+use std::process::Command;
 
 fn main() {
+    // Specify the name of the software you want to check
+    let software_name = "Steam";
 
-    let desired_software_list = match get_desired_software() {
-        Ok(list) => list,
-        Err(e) => {
-            println!("Error fetching desired software list: {:?}", e);
-            return;
-        }
-    };
+    // Run the 'winget' command to list installed software
+    let output = Command::new("winget")
+        .arg("list")
+        .output()
+        .expect("Failed to execute winget");
 
-    let installed_software_list = match get_installed_software_list() {
-        Ok(list) => list,
-        Err(e) => {
-            println!("Error fetching installed software list: {:?}", e);
-            return;
-        }
-    };
-    println!("{:?}", installed_software_list);
+    // Convert the output to a string for searching
+    let installed_software = String::from_utf8_lossy(&output.stdout);
+    println!("{}", installed_software);
 
-    for software in desired_software_list {
-        if installed_software_list.contains(&software) {
-            println!("{} is already installed.", software);
-        } else {
-            println!("Installing {}...", software);
-            // Call your installation function here
-            install_software(&software);
-        }
+    // Check if the desired software is in the list
+    if installed_software.contains(software_name) {
+        println!("{} is installed!", software_name);
+    } else {
+        println!("{} is not installed.", software_name);
     }
-
-
-  
-}
-
-
-fn get_installed_software_list() -> Result<Vec<String>, Box<dyn Error>> {
-    let mut installed_software = Vec::new();
-    let apps = installed::list()?;
-    for app in apps {
-        let name = app.name();
-        installed_software.push(name.to_string());
-    }
-    Ok(installed_software)
-}
-
-fn get_desired_software() -> Result<Vec<String>, Box<dyn Error>> {
-    let file = "software_list.toml";
-    let contents = fs::read_to_string(file)?;
-
-    let config: Config = toml::from_str(&contents)?;
-    let current_os = env::consts::OS;
-
-    let desired_software_list: Vec<String> = config.software
-        .into_iter()
-        .filter(|s| s.os.contains(&current_os.to_string()))
-        .map(|s| s.name)
-        .collect();
-
-    Ok(desired_software_list)
-}
-
-fn install_software(software: &str) {
-    println!("TODO - implement install_software to install {software}")
 }
