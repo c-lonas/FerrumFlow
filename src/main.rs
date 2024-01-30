@@ -3,22 +3,19 @@ extern crate toml;
 
 use color_eyre::eyre::Result;
 
-use std::{fs, process::Command, vec};
+use std::{env, fs, num::NonZeroI128, process::Command, vec};
 use toml::{Value, de::Error};
-
 
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let software_name = "PowerToys";
-
-    let installed_software_list = get_installed_list();
     let desired_software_list = get_desired_software_list();
 
-    for software in desired_software_list {
-        is_installed(&software, &installed_software_list);
-    } 
-
+    if let Some(installed_software_list) = get_installed_list() {
+        for software in desired_software_list {
+            is_installed(&software, &installed_software_list);
+        } 
+    }
 
     Ok(())
 }
@@ -45,20 +42,27 @@ fn get_desired_software_list() -> Vec<String> {
         }
     }
 
-
     desired_software_list
 }
 
-fn get_installed_list() -> String {
-   
-    let output = Command::new("winget")
-        .arg("list")
-        .output()
-        .expect("Failed to execute winget");
+fn get_installed_list() -> Option<String> {
+    let os = env::consts::OS;
+    match os {
+        "windows "=> {
+            let output = Command::new("winget")
+            .arg("list")
+            .output()
+            .expect("Failed to execute winget");
+            let installed_software = String::from_utf8_lossy(&output.stdout);
+            println!("{}", installed_software);
+            Some(installed_software.to_string())
+        }
+        _ => {
+            println!("OS: {} not supported yet", os);
+            None
+        }
+    }
     
-    let installed_software = String::from_utf8_lossy(&output.stdout);
-    println!("{}", installed_software);
-    installed_software.to_string()
 }
 
 fn is_installed(software_name: &str, installed_list: &String) -> bool {
